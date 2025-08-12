@@ -9,10 +9,6 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <!-- Chosen Palette: Warm Neutrals -->
-    <!-- Application Structure Plan: Se ha diseñado una aplicación tipo dashboard interactivo. A la izquierda, el usuario tiene controles para modificar los valores base, los montos totales a distribuir y el valor de la moneda CLOOTS en USD. A la derecha, los resultados se visualizan a través de un gráfico de dona para una comprensión rápida de las proporciones, una tabla detallada para los valores exactos y una nueva sección para funcionalidades impulsadas por Gemini. Esta estructura fue elegida para transformar el reporte estático en una herramienta dinámica, permitiendo al usuario explorar, analizar y comunicar los resultados de forma intuitiva. -->
-    <!-- Visualization & Content Choices: Reporte Info: Distribución de montos basada en valores iniciales. -> Goal: Permitir comparación, análisis y comunicación interactivos, incluyendo la equivalencia en USD. -> Viz/Presentation Method: Gráfico de dona (Chart.js/Canvas) para visualizar proporciones y una tabla HTML dinámica para los datos precisos con una nueva columna para el total en USD. Se añaden botones y un área de texto para las funciones de la API de Gemini. -> Interaction: Los campos de entrada (`<input>`) actualizan el gráfico y la tabla en tiempo real, incluyendo el nuevo campo del valor en USD por CLOOTS. Los nuevos botones (`<button>`) llaman a la API de Gemini para generar texto dinámico. -> Justification: Este enfoque ofrece una experiencia de usuario mucho más rica y funcional, fomentando la exploración de los datos y proporcionando herramientas prácticas para la comunicación. -> Library/Method: Chart.js para el gráfico, Vanilla JS para la lógica de cálculo y actualización del DOM, y la API de Gemini para la generación de texto. -->
-    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
     <style>
         body {
             font-family: 'Inter', sans-serif;
@@ -70,22 +66,37 @@
                     <div>
                         <h3 class="font-medium text-slate-700 mb-3">Montos Totales a Distribuir</h3>
                         <div class="space-y-4">
+                            <!-- Se han añadido los campos 'disabled' para que estos montos no sean editables por el usuario. -->
                             <div>
                                 <label for="monto1" class="block text-sm font-medium text-slate-600">Primera compra (CLOOTS)</label>
-                                <input type="number" id="monto1" value="309794.752128" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2">
+                                <input type="number" id="monto1" value="309794.752128" disabled class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2 bg-slate-100 cursor-not-allowed">
                             </div>
                             <div>
                                 <label for="monto2" class="block text-sm font-medium text-slate-600">Segunda compra (CLOOTS)</label>
-                                <input type="number" id="monto2" value="13604.167272" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2">
+                                <input type="number" id="monto2" value="13604.167272" disabled class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2 bg-slate-100 cursor-not-allowed">
                             </div>
                         </div>
                     </div>
 
                     <div>
                         <h3 class="font-medium text-slate-700 mb-3">Conversión a Dólares</h3>
-                        <div>
-                            <label for="cloots-to-usd" class="block text-sm font-medium text-slate-600">1 CLOOTS en USD</label>
-                            <input type="number" id="cloots-to-usd" value="0.005" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2">
+                        <div class="space-y-4">
+                            <div>
+                                <label for="conversion-method" class="block text-sm font-medium text-slate-600">Método de Conversión</label>
+                                <select id="conversion-method" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2">
+                                    <option value="usd">Valor Fijo (USD)</option>
+                                    <option value="market-cap">Market Cap</option>
+                                </select>
+                            </div>
+                            <div id="usd-conversion-input-container">
+                                <label for="cloots-to-usd" class="block text-sm font-medium text-slate-600">1 CLOOTS en USD</label>
+                                <input type="number" id="cloots-to-usd" value="0.005" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2">
+                            </div>
+                            <div id="market-cap-input-container" class="hidden">
+                                <label for="market-cap" class="block text-sm font-medium text-slate-600">Market Cap deseado (M USD)</label>
+                                <!-- Se ha eliminado el atributo step="any" -->
+                                <input type="number" id="market-cap" value="10" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2">
+                            </div>
                         </div>
                     </div>
 
@@ -106,7 +117,7 @@
                                 <th scope="col" class="px-4 py-3">Persona</th>
                                 <th scope="col" class="px-4 py-3 text-right">Porcentaje</th>
                                 <th scope="col" class="px-4 py-3 text-right">Primera compra</th>
-                                <th scope="col" class="px-4 py-3 text-right">segunda compra</th>
+                                <th scope="col" class="px-4 py-3 text-right">Segunda compra</th>
                                 <th scope="col" class="px-4 py-3 text-right font-bold">Total (CLOOTS)</th>
                                 <th scope="col" class="px-4 py-3 text-right font-bold">Total (USD)</th>
                             </tr>
@@ -143,7 +154,12 @@
 
             const monto1Input = document.getElementById('monto1');
             const monto2Input = document.getElementById('monto2');
+            const conversionMethodSelect = document.getElementById('conversion-method');
+            const usdConversionInputContainer = document.getElementById('usd-conversion-input-container');
+            const marketCapInputContainer = document.getElementById('market-cap-input-container');
             const clootsToUsdInput = document.getElementById('cloots-to-usd');
+            const marketCapInput = document.getElementById('market-cap');
+
             const initialValuesContainer = document.getElementById('initial-values-container');
             const resultsTableBody = document.getElementById('results-table-body');
             const explainButton = document.getElementById('explain-button');
@@ -185,7 +201,20 @@
             const calculateAndRender = () => {
                 const monto1 = parseFloat(monto1Input.value) || 0;
                 const monto2 = parseFloat(monto2Input.value) || 0;
-                const clootsToUsd = parseFloat(clootsToUsdInput.value) || 0;
+                
+                let clootsToUsd;
+                const conversionMethod = conversionMethodSelect.value;
+
+                if (conversionMethod === 'usd') {
+                    clootsToUsd = parseFloat(clootsToUsdInput.value) || 0;
+                } else if (conversionMethod === 'market-cap') {
+                    // Suministro total fijo asumido para el cálculo del Market Cap
+                    // 1,000,000,000 tokens es necesario para que 10M de market cap = $0.01/token
+                    const totalSupply = 1000000000;
+                    // El campo de entrada ya usa parseFloat para manejar los decimales
+                    const marketCapInUsd = parseFloat(marketCapInput.value) * 1000000 || 0;
+                    clootsToUsd = totalSupply > 0 ? (marketCapInUsd / totalSupply) : 0;
+                }
 
                 const personInputs = document.querySelectorAll('.person-input');
                 personInputs.forEach((input, index) => {
@@ -193,7 +222,6 @@
                 });
 
                 const totalInitialValue = peopleData.reduce((sum, person) => sum + person.value, 0);
-
                 const percentages = peopleData.map(person => totalInitialValue > 0 ? (person.value / totalInitialValue) : 0);
                 
                 resultsTableBody.innerHTML = '';
@@ -284,7 +312,8 @@
                 outputText.textContent = '';
                 const chatHistory = [{ role: "user", parts: [{ text: prompt }] }];
                 const payload = { contents: chatHistory };
-                const apiKey = "";
+                // NOTA IMPORTANTE: Para publicar, necesitas obtener tu propia clave de API y reemplazar las comillas vacías.
+                const apiKey = ""; 
                 const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
                 let response;
                 let retries = 0;
@@ -345,7 +374,17 @@
                 const monto1 = parseFloat(monto1Input.value) || 0;
                 const monto2 = parseFloat(monto2Input.value) || 0;
                 const totalMonto = monto1 + monto2;
-                const clootsToUsd = parseFloat(clootsToUsdInput.value) || 0;
+                
+                let clootsToUsd;
+                const conversionMethod = conversionMethodSelect.value;
+                if (conversionMethod === 'usd') {
+                    clootsToUsd = parseFloat(clootsToUsdInput.value) || 0;
+                } else if (conversionMethod === 'market-cap') {
+                    const totalSupply = 1000000000;
+                    const marketCapInUsd = parseFloat(marketCapInput.value) * 1000000 || 0;
+                    clootsToUsd = totalSupply > 0 ? (marketCapInUsd / totalSupply) : 0;
+                }
+
                 const totalMontoUsd = totalMonto * clootsToUsd;
 
                 const personDataForPrompt = peopleData.map((person, index) => {
@@ -364,17 +403,30 @@
                 callGeminiApi(draftPrompt);
             };
 
+            const toggleConversionInputs = () => {
+                const conversionMethod = conversionMethodSelect.value;
+                if (conversionMethod === 'usd') {
+                    usdConversionInputContainer.classList.remove('hidden');
+                    marketCapInputContainer.classList.add('hidden');
+                } else {
+                    usdConversionInputContainer.classList.add('hidden');
+                    marketCapInputContainer.classList.remove('hidden');
+                }
+                calculateAndRender();
+            };
+
             const addEventListeners = () => {
-                document.querySelectorAll('.person-input, #monto1, #monto2, #cloots-to-usd').forEach(input => {
+                document.querySelectorAll('.person-input, #cloots-to-usd, #market-cap').forEach(input => {
                     input.addEventListener('input', calculateAndRender);
                 });
+                conversionMethodSelect.addEventListener('change', toggleConversionInputs);
                 explainButton.addEventListener('click', explainCalculation);
                 draftMessageButton.addEventListener('click', draftMessage);
             };
 
             const init = () => {
                 createInitialValueInputs();
-                calculateAndRender();
+                toggleConversionInputs(); // Establecer el estado inicial de los campos
                 addEventListeners();
             };
 
